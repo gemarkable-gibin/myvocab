@@ -3,237 +3,1197 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>암기고래 - 스마트 단어장</title>
+  <meta name="theme-color" content="#0D0D1A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>암기고래</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
   <style>
+    /* ─── CSS VARIABLES ─── */
+    :root {
+      --bg: #0D0D1A;
+      --bg2: #13132B;
+      --surface: rgba(255,255,255,0.05);
+      --surface2: rgba(255,255,255,0.09);
+      --border: rgba(255,255,255,0.08);
+      --text: #FFFFFF;
+      --text-dim: rgba(255,255,255,0.45);
+      --text-muted: rgba(255,255,255,0.22);
+      --accent: #FF6B6B;
+      --accent2: #4ECDC4;
+      --accent3: #FFD166;
+      --radius-card: 24px;
+      --radius-btn: 16px;
+      --safe-bottom: env(safe-area-inset-bottom, 16px);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
     body {
-      font-family: 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(160deg, #0f0f1a 0%, #1a1a2e 60%, #16213e 100%);
-      color: #fff; min-height: 100vh; overflow-x: hidden;
+      font-family: 'Noto Sans KR', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      overscroll-behavior: none;
     }
-    .screen { display: none; padding-bottom: 50px; }
-    .screen.active { display: block; animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* 헤더 */
-    .header { padding: 40px 24px 20px; text-align: center; }
-    .title { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, #FF6B6B, #4ECDC4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    
-    /* 챕터 리스트 디자인 */
-    .chapter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; }
-    .chapter-card {
-      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s;
+    /* ─── SCREEN TRANSITIONS ─── */
+    .screen { display: none; min-height: 100vh; min-height: 100dvh; flex-direction: column; }
+    .screen.active { display: flex; animation: slideIn 0.28s cubic-bezier(.25,.8,.25,1); }
+    .screen.back { animation: slideBack 0.28s cubic-bezier(.25,.8,.25,1); }
+    @keyframes slideIn  { from { opacity:0; transform: translateX(30px); } to { opacity:1; transform: translateX(0); } }
+    @keyframes slideBack{ from { opacity:0; transform: translateX(-30px); } to { opacity:1; transform: translateX(0); } }
+
+    /* ─── HEADER ─── */
+    .top-bar {
+      padding: 52px 20px 16px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
     }
-    .chapter-card:active { transform: scale(0.95); background: rgba(255, 107, 107, 0.2); }
-    .chapter-num { font-size: 20px; font-weight: 800; color: #FF6B6B; margin-bottom: 4px; }
-    .chapter-info { font-size: 12px; color: rgba(255,255,255,0.4); }
+    .back-btn {
+      width: 40px; height: 40px; border-radius: 14px;
+      background: var(--surface2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text); font-size: 18px; cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .back-btn:active { background: var(--surface); }
 
-    /* 학습 카드 */
-    .card-container { perspective: 1200px; width: 90%; max-width: 340px; margin: 20px auto; }
+    /* ─── SCROLLABLE CONTENT ─── */
+    .scroll-area { flex: 1; overflow-y: auto; padding: 0 16px 120px; -webkit-overflow-scrolling: touch; }
+    .scroll-area::-webkit-scrollbar { display: none; }
+
+    /* ─── HOME SCREEN ─── */
+    .home-hero {
+      padding: 60px 20px 28px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .logo-wrap { margin-bottom: 12px; }
+    .logo-emoji { font-size: 48px; display: block; margin-bottom: 8px; animation: floatAnim 3s ease-in-out infinite; }
+    @keyframes floatAnim { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .app-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px; font-weight: 800;
+      background: linear-gradient(135deg, #FF6B6B 0%, #FFD166 50%, #4ECDC4 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .app-subtitle { color: var(--text-dim); font-size: 13px; margin-top: 4px; letter-spacing: 0.5px; }
+
+    /* Category cards */
+    .category-list { display: flex; flex-direction: column; gap: 12px; }
+    .category-card {
+      border-radius: 20px;
+      padding: 18px 20px;
+      display: flex; align-items: center; gap: 16px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      position: relative; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .category-card:active { transform: scale(0.98); }
+    .category-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--c1,#FF6B6B) 0%, transparent 60%);
+      opacity: 0.12;
+    }
+    .cat-icon {
+      width: 52px; height: 52px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; flex-shrink: 0;
+    }
+    .cat-info { flex: 1; }
+    .cat-name { font-size: 17px; font-weight: 700; }
+    .cat-meta { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+    .cat-arrow { color: var(--text-muted); font-size: 20px; }
+
+    /* Section label */
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      color: var(--text-muted); text-transform: uppercase;
+      margin: 20px 0 10px;
+    }
+
+    /* ─── CHAPTER SCREEN ─── */
+    .chapter-header { padding: 0 20px 0; }
+    .chapter-group-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px; font-weight: 800; line-height: 1.2;
+    }
+    .chapter-group-sub { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+    .chapter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .chapter-tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 16px;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .chapter-tile:active { transform: scale(0.96); }
+    .chapter-tile.completed { border-color: rgba(78,205,196,0.3); }
+    .chapter-tile-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .chapter-tile-label { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
+    .chapter-tile-count { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .chapter-tile-progress {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--border);
+    }
+    .chapter-tile-progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 0 0 18px 18px; transition: width 0.5s ease;
+    }
+
+    /* ─── STUDY SCREEN ─── */
+    .study-top {
+      padding: 44px 16px 10px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    .study-title { flex: 1; }
+    .study-chapter-label { font-size: 12px; color: var(--text-dim); }
+    .study-category-label { font-size: 15px; font-weight: 700; }
+
+    /* MODE TABS */
+    .mode-tabs {
+      display: flex; gap: 0;
+      padding: 0 16px;
+      flex-shrink: 0;
+      margin-bottom: 12px;
+    }
+    .mode-tab {
+      flex: 1; padding: 10px 4px; text-align: center;
+      font-size: 13px; font-weight: 600;
+      color: var(--text-dim); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .mode-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    /* PROGRESS */
+    .study-progress-bar {
+      padding: 0 16px 16px;
+      flex-shrink: 0;
+    }
+    .progress-track {
+      background: var(--surface2); border-radius: 99px; height: 4px;
+    }
+    .progress-fill {
+      height: 4px; border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.4s cubic-bezier(.4,2,.6,1);
+    }
+    .progress-nums {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-muted); margin-top: 6px;
+    }
+
+    /* FLASH CARD */
+    .card-scene {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .card-container {
+      perspective: 1400px;
+      width: 100%; max-width: 380px;
+    }
     .card {
-      position: relative; width: 100%; height: 280px; transform-style: preserve-3d;
-      transition: transform 0.5s cubic-bezier(.4,2,.6,1); cursor: pointer;
+      position: relative; width: 100%; height: 270px;
+      transform-style: preserve-3d;
+      transition: transform 0.5s cubic-bezier(.4,2.1,.6,1);
+      cursor: pointer;
     }
     .card.flipped { transform: rotateY(180deg); }
     .card-face {
-      position: absolute; inset: 0; backface-visibility: hidden; border-radius: 24px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px;
-      box-shadow: 0 15px 45px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+      position: absolute; inset: 0; border-radius: var(--radius-card);
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 28px 24px;
     }
-    .card-front { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
-    .card-back { background: linear-gradient(135deg, rgba(78, 205, 196, 0.1) 0%, #1a1a2e 100%); transform: rotateY(180deg); border-color: rgba(78, 205, 196, 0.4); }
-    
-    .controls { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 30px; }
-    .btn-icon { width: 56px; height: 56px; border-radius: 18px; background: rgba(255,255,255,0.08); border: none; color: #fff; font-size: 24px; }
-    .btn-play { width: 68px; height: 68px; border-radius: 22px; background: #FF6B6B; border: none; color: #fff; font-size: 28px; box-shadow: 0 4px 15px rgba(255,107,107,0.4); }
+    .card-front {
+      background: linear-gradient(145deg, #1C1C3A 0%, #141428 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    .card-back {
+      transform: rotateY(180deg);
+      background: linear-gradient(145deg, #0E2830 0%, #13263A 100%);
+      border: 1px solid rgba(78,205,196,0.25);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
+    .card-hint-tap {
+      font-size: 10px; letter-spacing: 2px; color: var(--text-muted);
+      text-transform: uppercase; margin-bottom: 14px; font-weight: 600;
+    }
+    .card-word {
+      font-family: 'Playfair Display', serif;
+      font-size: 34px; font-weight: 800; text-align: center;
+      line-height: 1.15; color: #fff;
+      word-break: break-word;
+    }
+    .card-word.ko { font-family: 'Noto Sans KR', sans-serif; font-size: 26px; }
+    .card-index {
+      font-size: 11px; color: var(--text-muted); margin-top: 12px;
+      font-weight: 600; letter-spacing: 1px;
+    }
+    .card-dots { display: flex; gap: 5px; margin-top: 14px; }
+    .card-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-    #loading { position: fixed; inset: 0; background: #0f0f1a; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+    .back-meaning {
+      font-size: 24px; font-weight: 800; color: var(--accent2); text-align: center;
+      margin-bottom: 12px;
+    }
+    .back-divider { width: 40px; height: 1px; background: rgba(78,205,196,0.3); margin: 0 auto 12px; }
+    .back-desc {
+      font-size: 12px; line-height: 1.75; color: rgba(255,255,255,0.55);
+      text-align: center; white-space: pre-wrap;
+      max-height: 110px; overflow-y: auto;
+    }
+    .back-desc::-webkit-scrollbar { display: none; }
+
+    /* HINT (Quiz Mode) */
+    .hint-row {
+      display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 14px;
+    }
+    .hint-char {
+      width: 26px; height: 32px; display: flex; align-items: flex-end; justify-content: center;
+      padding-bottom: 4px; border-bottom: 2px solid rgba(255,255,255,0.3);
+      font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700;
+      color: #fff; transition: all 0.25s; min-width: 10px;
+    }
+    .hint-char.space { border: none; width: 14px; }
+
+    /* CONTROLS */
+    .controls-area {
+      flex-shrink: 0;
+      padding: 12px 16px calc(var(--safe-bottom) + 16px);
+    }
+    .control-sub {
+      display: flex; justify-content: center; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .control-main {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+    }
+    .btn-nav {
+      width: 52px; height: 52px; border-radius: var(--radius-btn);
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.1s, background 0.15s;
+    }
+    .btn-nav:active { transform: scale(0.92); background: var(--surface); }
+    .btn-primary {
+      width: 68px; height: 68px; border-radius: 22px;
+      background: linear-gradient(135deg, var(--accent), #FF8E53);
+      border: none; color: #fff; font-size: 26px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 24px rgba(255,107,107,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-primary:active { transform: scale(0.93); box-shadow: 0 4px 12px rgba(255,107,107,0.3); }
+    .btn-primary.playing {
+      background: linear-gradient(135deg, #555, #333);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .btn-star {
+      width: 42px; height: 42px; border-radius: 13px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-star.active { color: var(--accent3); border-color: var(--accent3); background: rgba(255,209,102,0.1); }
+
+    /* Repeat counter */
+    .repeat-ctrl {
+      display: flex; align-items: center; gap: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .repeat-arrow {
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer;
+    }
+    .repeat-val {
+      width: 36px; text-align: center; font-size: 14px; font-weight: 700; color: var(--text);
+    }
+    .repeat-label { font-size: 12px; color: var(--text-dim); }
+
+    /* Dir toggle (test mode) */
+    .dir-toggle {
+      display: flex; background: var(--surface2); border-radius: 12px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .dir-btn {
+      padding: 8px 14px; font-size: 12px; font-weight: 700;
+      border: none; background: none; color: var(--text-dim); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .dir-btn.active { background: var(--accent); color: #fff; }
+
+    /* Hint btn (quiz mode) */
+    .hint-btn {
+      padding: 10px 24px; border-radius: 30px;
+      background: linear-gradient(135deg, var(--accent2), #38B2AC);
+      border: none; color: #fff; font-size: 14px; font-weight: 700;
+      cursor: pointer; box-shadow: 0 6px 16px rgba(78,205,196,0.35);
+      transition: transform 0.15s;
+    }
+    .hint-btn:active { transform: scale(0.95); }
+    .hint-btn:disabled { background: var(--surface2); color: var(--text-dim); box-shadow: none; }
+
+    /* Audio btn */
+    .audio-btn {
+      padding: 8px 18px; border-radius: 30px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 12px; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 0.15s;
+    }
+    .audio-btn:active { background: var(--surface); }
+
+    /* Pill tag */
+    .pill {
+      display: inline-block; padding: 3px 10px; border-radius: 99px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .pill-learn  { background: rgba(255,107,107,0.15); color: var(--accent); }
+    .pill-test   { background: rgba(78,205,196,0.15);  color: var(--accent2); }
+    .pill-quiz   { background: rgba(255,209,102,0.15); color: var(--accent3); }
+
+    /* LOADING */
+    #loading-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 999; gap: 16px;
+    }
+    .loading-whale { font-size: 52px; animation: floatAnim 1.5s ease-in-out infinite; }
+    .loading-text { color: var(--text-dim); font-size: 14px; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: rgba(30,30,60,0.95); border: 1px solid var(--border);
+      border-radius: 30px; padding: 10px 20px; font-size: 13px;
+      color: var(--text); opacity: 0; transition: all 0.3s;
+      white-space: nowrap; backdrop-filter: blur(8px);
+      z-index: 100; pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Swipe feedback */
+    .swipe-feedback {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      font-size: 40px; opacity: 0; pointer-events: none; z-index: 10;
+      transition: opacity 0.3s;
+    }
+    .swipe-feedback.show { opacity: 1; animation: popFade 0.5s ease forwards; }
+    @keyframes popFade { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)} 40%{opacity:1;transform:translate(-50%,-50%) scale(1.2)} 100%{opacity:0;transform:translate(-50%,-50%) scale(1)} }
+
+    /* My Vocab badge */
+    .my-vocab-badge {
+      position: absolute; top: 12px; right: 12px;
+      background: linear-gradient(135deg, var(--accent3), #FFB703);
+      border-radius: 99px; padding: 2px 8px;
+      font-size: 10px; font-weight: 700; color: #0D0D1A;
+    }
+
+    /* Leitner buttons (learn mode) */
+    .leitner-row {
+      display: flex; gap: 8px; justify-content: center;
+    }
+    .leitner-btn {
+      flex: 1; max-width: 110px;
+      padding: 10px 6px; border-radius: 14px; border: none;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .leitner-btn:active { transform: scale(0.95); }
+    .lb-know   { background: rgba(78,205,196,0.2); color: var(--accent2); border: 1px solid rgba(78,205,196,0.3); }
+    .lb-unsure { background: rgba(255,209,102,0.15); color: var(--accent3); border: 1px solid rgba(255,209,102,0.25); }
+    .lb-nope   { background: rgba(255,107,107,0.15); color: var(--accent); border: 1px solid rgba(255,107,107,0.2); }
+
+    /* Responsive tweaks */
+    @media (max-width: 360px) {
+      .card-word { font-size: 28px; }
+      .card-face { padding: 20px 16px; }
+    }
+    @media (min-width: 500px) {
+      body { max-width: 430px; margin: 0 auto; }
+    }
   </style>
 </head>
 <body>
 
-<div id="loading">🐋<br>데이터 로딩 중...</div>
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="loading-whale">🐋</div>
+  <div class="loading-text">단어장을 불러오는 중...</div>
+</div>
 
-<div id="app">
-  <div id="screen-home" class="screen active">
-    <div class="header">
-      <h1 class="title">암기고래</h1>
-      <p id="total-count" style="color: rgba(255,255,255,0.4); margin-top: 8px;">단어를 불러오는 중...</p>
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════
+     HOME SCREEN
+═══════════════════════════════════ -->
+<div id="screen-home" class="screen active" style="display:none">
+  <div class="home-hero">
+    <div class="logo-wrap">
+      <span class="logo-emoji">🐋</span>
+      <div class="app-name">암기고래</div>
+      <div class="app-subtitle">스마트 영단어 플래시카드</div>
     </div>
-    <div class="chapter-grid" id="chapter-list">
-      </div>
   </div>
 
-  <div id="screen-study" class="screen">
-    <div style="padding: 30px 24px 10px; display: flex; align-items: center; justify-content: space-between;">
-      <button onclick="stopAutoPlay(); showScreen('screen-home')" style="background:none; border:none; color:#aaa;">← 목록</button>
-      <div id="word-progress" style="font-size: 14px; color: #4ECDC4; font-weight:700;">1 / 10</div>
-      <div style="width: 40px;"></div>
-    </div>
+  <div class="scroll-area">
+    <div class="section-label">단어장 목록</div>
+    <div id="category-list" class="category-list"></div>
+  </div>
+</div>
 
-    <div class="card-container" onclick="toggleFlip()">
-      <div id="flashcard" class="card">
+<!-- ═══════════════════════════════════
+     CHAPTER SCREEN
+═══════════════════════════════════ -->
+<div id="screen-chapters" class="screen" style="display:none">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goBack('screen-home')">←</button>
+    <div class="chapter-header" style="flex:1">
+      <div id="chap-group-name" class="chapter-group-name"></div>
+      <div id="chap-group-sub" class="chapter-group-sub"></div>
+    </div>
+  </div>
+  <div class="scroll-area">
+    <div class="section-label">챕터 선택</div>
+    <div id="chapter-grid" class="chapter-grid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     STUDY SCREEN
+═══════════════════════════════════ -->
+<div id="screen-study" class="screen" style="display:none">
+  <!-- Top bar -->
+  <div class="study-top">
+    <button class="back-btn" onclick="goBack('screen-chapters')">←</button>
+    <div class="study-title">
+      <div id="study-cat-label" class="study-category-label"></div>
+      <div id="study-chap-label" class="study-chapter-label"></div>
+    </div>
+    <button class="btn-star" id="star-btn" onclick="toggleStar()">☆</button>
+  </div>
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <div class="mode-tab active" data-mode="learn" onclick="switchMode('learn')">📖 학습</div>
+    <div class="mode-tab" data-mode="test" onclick="switchMode('test')">⚡ 테스트</div>
+    <div class="mode-tab" data-mode="quiz" onclick="switchMode('quiz')">🧠 퀴즈</div>
+  </div>
+
+  <!-- Progress -->
+  <div class="study-progress-bar">
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-nums">
+      <span id="prog-cur">1</span>
+      <span id="prog-total">10</span>
+    </div>
+  </div>
+
+  <!-- Card -->
+  <div class="card-scene">
+    <div class="card-container">
+      <div id="flash-card" class="card">
         <div class="card-face card-front">
-          <div id="word-en" style="font-size: 32px; font-weight: 800; text-align:center;">Word</div>
+          <div class="card-hint-tap" id="front-hint-text">TAP TO FLIP</div>
+          <div class="card-word" id="front-word">Word</div>
+          <div class="card-index" id="front-index">1 / 10</div>
+          <div id="quiz-hint-row" class="hint-row" style="display:none"></div>
+          <div class="card-dots" id="card-dots"></div>
         </div>
         <div class="card-face card-back">
-          <div id="word-ko" style="font-size: 24px; font-weight: 800; color:#4ECDC4;">뜻</div>
-          <div style="height: 1px; width: 40%; background: rgba(255,255,255,0.1); margin: 20px 0;"></div>
-          <div id="word-desc" style="font-size: 14px; color: rgba(255,255,255,0.5); text-align: center; white-space: pre-line;">설명</div>
+          <div class="back-meaning" id="back-meaning">뜻</div>
+          <div class="back-divider"></div>
+          <div class="back-desc" id="back-desc">설명</div>
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="controls">
-      <button class="btn-icon" onclick="prevWord()">‹</button>
-      <button id="btn-play-toggle" class="btn-play" onclick="toggleAutoPlay()">▶</button>
-      <button class="btn-icon" onclick="nextWord()">›</button>
+  <!-- Sub controls (mode-specific) -->
+  <div class="controls-area">
+    <!-- LEARN mode sub -->
+    <div id="ctrl-learn" class="control-sub">
+      <div class="repeat-ctrl">
+        <button class="repeat-arrow" onclick="changeRepeat(-1)">‹</button>
+        <div class="repeat-val" id="repeat-val">1</div>
+        <div class="repeat-label">회 반복</div>
+        <button class="repeat-arrow" onclick="changeRepeat(1)">›</button>
+      </div>
+      <button class="audio-btn" onclick="playAudioOnly()">🔊 발음</button>
+    </div>
+
+    <!-- TEST mode sub -->
+    <div id="ctrl-test" class="control-sub" style="display:none">
+      <div class="dir-toggle">
+        <button class="dir-btn active" id="dir-en-ko" onclick="setDir('en-ko')">영→한</button>
+        <button class="dir-btn" id="dir-ko-en" onclick="setDir('ko-en')">한→영</button>
+      </div>
+      <button class="audio-btn" onclick="playAudioOnly()">🔊 발음</button>
+    </div>
+
+    <!-- QUIZ mode sub -->
+    <div id="ctrl-quiz" class="control-sub" style="display:none">
+      <button class="hint-btn" id="hint-btn" onclick="nextHint()">💡 힌트 보기</button>
+    </div>
+
+    <!-- LEARN: leitner buttons (shown when card is flipped) -->
+    <div id="leitner-row" class="leitner-row" style="display:none; margin-bottom:12px;">
+      <button class="leitner-btn lb-nope"   onclick="leitnerMark(0)">😵 몰라요</button>
+      <button class="leitner-btn lb-unsure" onclick="leitnerMark(1)">🤔 가물가물</button>
+      <button class="leitner-btn lb-know"   onclick="leitnerMark(2)">✅ 알아요!</button>
+    </div>
+
+    <!-- Main nav buttons -->
+    <div class="control-main">
+      <button class="btn-nav" onclick="navigate(-1)">‹</button>
+      <button class="btn-primary" id="btn-play" onclick="toggleAutoPlay()">▶</button>
+      <button class="btn-nav" onclick="navigate(1)">›</button>
     </div>
   </div>
 </div>
 
+<!-- ═════════════════ SCRIPT ═════════════════ -->
 <script>
-  let allWords = [];
-  let chapters = [];
-  let currentChapterIdx = 0;
-  let currentIndex = 0;
-  let isFlipped = false;
-  let isPlaying = false;
-  let autoPlayTimeout;
-  let currentAudio = new Audio(); // 오디오 객체 미리 생성 (권한 획득용)
+/* ───────────────────────────────────────────
+   ★★★ CONFIGURATION — EDIT THIS SECTION ★★★
+   각 카테고리의 이름과 CSV 파일 경로를 설정하세요.
+   여러 카테고리를 추가하려면 배열에 항목을 추가하세요.
+─────────────────────────────────────────── */
+const CATEGORIES_CONFIG = [
+  {
+    name: "트루먼쇼",          // 카테고리 이름 (홈화면에 표시)
+    file: "vocab.csv",         // CSV 파일 경로 (같은 폴더 기준)
+    icon: "🎬",                // 아이콘 이모지
+    color: "#FF6B6B",          // 테마 컬러
+    description: "영화 속 영단어 학습"
+  },
+  // 추가 카테고리 예시 (주석 해제 후 사용):
+  // {
+  //   name: "인턴",
+  //   file: "intern.csv",
+  //   icon: "💼",
+  //   color: "#4ECDC4",
+  //   description: "영화 인턴 단어장"
+  // },
+];
 
-  // 1. CSV 로드 및 챕터 나누기
-  async function loadData() {
+/* ─── STATE ─── */
+let allCategories = {};     // { catIdx: [ {word, meaning, desc}, ... ] }
+let starredWords  = JSON.parse(localStorage.getItem('starred') || '{}'); // { word: true }
+let leitnerData   = JSON.parse(localStorage.getItem('leitner') || '{}'); // { word: 0|1|2 }
+
+let currentCatIdx   = 0;
+let currentChapIdx  = 0;
+let currentWordIdx  = 0;
+let currentMode     = 'learn'; // learn | test | quiz
+let testDir         = 'en-ko';
+let repeatCount     = 1; // 1-9
+let currentRep      = 0;
+let hintLevel       = 0; // 0,1,2,3
+let isFlipped       = false;
+let isPlaying       = false;
+let autoTimer       = null;
+let audioEl         = null;
+
+const CHAPTER_SIZE = 10;
+
+/* ─── HELPERS ─── */
+function chunkArray(arr, size) {
+  const res = [];
+  for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+  return res;
+}
+function currentChapter() {
+  return (allCategories[currentCatIdx] || [])[currentChapIdx] || [];
+}
+function currentWord() { return currentChapter()[currentWordIdx] || null; }
+
+/* ─── CSV PARSER (handles quoted fields with commas) ─── */
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const fields = [];
+    let cur = '', inQ = false;
+    for (let c = 0; c < lines[i].length; c++) {
+      const ch = lines[i][c];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { fields.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    fields.push(cur.trim());
+    if (fields[0]) result.push({ word: fields[0], meaning: fields[1]||'', desc: fields[2]||'' });
+  }
+  return result;
+}
+
+/* ─── LOAD DATA ─── */
+async function loadAll() {
+  for (let ci = 0; ci < CATEGORIES_CONFIG.length; ci++) {
+    const cfg = CATEGORIES_CONFIG[ci];
     try {
-      const response = await fetch('vocab.csv?v=' + Date.now());
-      const text = await response.text();
-      const lines = text.split('\n').filter(l => l.trim() !== '');
-      
-      allWords = lines.slice(1).map(line => {
-        const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-        return {
-          word: cols[0]?.replace(/"/g, '').trim() || '',
-          meaning: cols[1]?.replace(/"/g, '').trim() || '',
-          desc: cols[2]?.replace(/"/g, '').trim() || ''
-        };
-      }).filter(w => w.word !== '');
-
-      // 10개씩 챕터 나누기
-      for (let i = 0; i < allWords.length; i += 10) {
-        chapters.push(allWords.slice(i, i + 10));
-      }
-
-      renderChapters();
-      document.getElementById('total-count').innerText = `총 ${allWords.length}단어 / ${chapters.length}챕터`;
-      document.getElementById('loading').style.display = 'none';
-    } catch (e) {
-      alert("데이터를 불러오지 못했습니다. vocab.csv 파일을 확인해주세요.");
+      const r = await fetch(cfg.file + '?v=' + Date.now());
+      const text = await r.text();
+      const words = parseCSV(text);
+      allCategories[ci] = chunkArray(words, CHAPTER_SIZE);
+    } catch(e) {
+      console.error('Failed to load', cfg.file, e);
+      allCategories[ci] = [];
     }
   }
+  // Add "내 단어장" if starred words exist
+  const starred = Object.keys(starredWords).filter(w => starredWords[w]);
+  if (starred.length > 0) {
+    // Build starred word objects by searching all categories
+    const starredObjs = [];
+    for (const ci in allCategories) {
+      for (const chap of allCategories[ci]) {
+        for (const w of chap) {
+          if (starredWords[w.word]) starredObjs.push(w);
+        }
+      }
+    }
+    const myIdx = CATEGORIES_CONFIG.length; // virtual category index
+    allCategories[myIdx] = chunkArray(starredObjs, CHAPTER_SIZE);
+  }
+  renderHome();
+  document.getElementById('loading-screen').style.display = 'none';
+  showScreen('screen-home');
+}
 
-  // 2. 챕터 리스트 그리기
-  function renderChapters() {
-    const list = document.getElementById('chapter-list');
-    list.innerHTML = chapters.map((ch, idx) => `
-      <div class="chapter-card" onclick="startChapter(${idx})">
-        <div class="chapter-num">${idx + 1}</div>
-        <div class="chapter-info">단어 ${ch.length}개</div>
+/* ─── RENDER HOME ─── */
+function renderHome() {
+  const list = document.getElementById('category-list');
+  list.innerHTML = '';
+
+  CATEGORIES_CONFIG.forEach((cfg, ci) => {
+    const chapters = allCategories[ci] || [];
+    const totalWords = chapters.reduce((s, ch) => s + ch.length, 0);
+    const card = document.createElement('div');
+    card.className = 'category-card';
+    card.style.setProperty('--c1', cfg.color);
+    card.innerHTML = `
+      <div class="cat-icon" style="background: ${cfg.color}20; border: 1px solid ${cfg.color}40;">
+        ${cfg.icon}
       </div>
-    `).join('');
+      <div class="cat-info">
+        <div class="cat-name">${cfg.name}</div>
+        <div class="cat-meta">${cfg.description} · ${totalWords}단어 · ${chapters.length}챕터</div>
+      </div>
+      <div class="cat-arrow">›</div>
+    `;
+    card.onclick = () => openCategory(ci);
+    list.appendChild(card);
+  });
+
+  // My vocab
+  const myIdx = CATEGORIES_CONFIG.length;
+  if (allCategories[myIdx]) {
+    const chapters = allCategories[myIdx];
+    const totalWords = chapters.reduce((s, ch) => s + ch.length, 0);
+    const card = document.createElement('div');
+    card.className = 'category-card';
+    card.style.setProperty('--c1', '#FFD166');
+    card.innerHTML = `
+      <div class="cat-icon" style="background: rgba(255,209,102,0.15); border:1px solid rgba(255,209,102,0.3);">⭐</div>
+      <div class="cat-info">
+        <div class="cat-name">내 단어장</div>
+        <div class="cat-meta">즐겨찾기 단어 · ${totalWords}단어 · ${chapters.length}챕터</div>
+      </div>
+      <div class="cat-arrow">›</div>
+    `;
+    card.onclick = () => openCategory(myIdx);
+    list.appendChild(card);
+  }
+}
+
+/* ─── OPEN CATEGORY → CHAPTERS ─── */
+function openCategory(catIdx) {
+  currentCatIdx = catIdx;
+  const cfg = CATEGORIES_CONFIG[catIdx] || { name: '내 단어장', color: '#FFD166' };
+  const chapters = allCategories[catIdx] || [];
+  const totalWords = chapters.reduce((s, ch) => s + ch.length, 0);
+
+  document.getElementById('chap-group-name').textContent = cfg.name || '내 단어장';
+  document.getElementById('chap-group-sub').textContent = `총 ${totalWords}단어 · ${chapters.length}챕터`;
+
+  const grid = document.getElementById('chapter-grid');
+  grid.innerHTML = '';
+  chapters.forEach((chap, ci) => {
+    const tile = document.createElement('div');
+    tile.className = 'chapter-tile';
+    const progress = getChapterProgress(catIdx, ci);
+    tile.innerHTML = `
+      <div class="chapter-tile-num">${ci + 1}</div>
+      <div class="chapter-tile-label">챕터 ${ci + 1}</div>
+      <div class="chapter-tile-count">${chap.length}개 단어</div>
+      <div class="chapter-tile-progress">
+        <div class="chapter-tile-progress-fill" style="width:${progress}%"></div>
+      </div>
+    `;
+    tile.onclick = () => openStudy(catIdx, ci);
+    grid.appendChild(tile);
+  });
+  showScreen('screen-chapters');
+}
+
+function getChapterProgress(catIdx, chapIdx) {
+  const key = `progress_${catIdx}_${chapIdx}`;
+  return parseInt(localStorage.getItem(key) || '0');
+}
+function saveChapterProgress(catIdx, chapIdx, pct) {
+  localStorage.setItem(`progress_${catIdx}_${chapIdx}`, Math.round(pct));
+}
+
+/* ─── OPEN STUDY ─── */
+function openStudy(catIdx, chapIdx) {
+  currentCatIdx  = catIdx;
+  currentChapIdx = chapIdx;
+  currentWordIdx = 0;
+  currentRep     = 0;
+  stopAutoPlay();
+  switchMode('learn');
+  
+  const cfg = CATEGORIES_CONFIG[catIdx] || { name: '내 단어장' };
+  document.getElementById('study-cat-label').textContent = cfg.name || '내 단어장';
+  document.getElementById('study-chap-label').textContent = `챕터 ${chapIdx + 1}`;
+
+  renderCard();
+  showScreen('screen-study');
+}
+
+/* ─── RENDER CARD ─── */
+function renderCard() {
+  const w = currentWord();
+  if (!w) return;
+  const chapter = currentChapter();
+  const total = chapter.length;
+
+  // Reset flip
+  isFlipped = false;
+  document.getElementById('flash-card').classList.remove('flipped');
+  document.getElementById('leitner-row').style.display = 'none';
+
+  // Progress
+  const pct = ((currentWordIdx + 1) / total) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('prog-cur').textContent = currentWordIdx + 1;
+  document.getElementById('prog-total').textContent = total;
+  saveChapterProgress(currentCatIdx, currentChapIdx, pct);
+
+  // Dots
+  const dots = document.getElementById('card-dots');
+  dots.innerHTML = '';
+  for (let i = 0; i < Math.min(total, 10); i++) {
+    const d = document.createElement('div');
+    d.className = 'card-dot';
+    d.style.background = i === currentWordIdx ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.2)';
+    d.style.width = i === currentWordIdx ? '16px' : '6px';
+    d.style.transition = 'all 0.3s';
+    d.style.borderRadius = '99px';
+    dots.appendChild(d);
   }
 
-  function startChapter(idx) {
-    currentChapterIdx = idx;
-    currentIndex = 0;
-    // 사운드 권한을 얻기 위해 빈 소리 한번 재생 (모바일 필수)
-    currentAudio.play().catch(() => {}); 
-    showScreen('screen-study');
-    updateCard();
-  }
+  // Star
+  const starBtn = document.getElementById('star-btn');
+  starBtn.textContent = starredWords[w.word] ? '⭐' : '☆';
+  starBtn.className = 'btn-star' + (starredWords[w.word] ? ' active' : '');
 
-  // 3. 오디오 재생 (에러 핸들링 강화)
-  function playAudio(wordText, callback) {
-    const fileName = wordText.toLowerCase().replace(/[^a-z0-9]/g, '');
-    currentAudio.src = `./audio/${fileName}.mp3`;
-    
-    currentAudio.play()
-      .then(() => { if(callback) currentAudio.onended = callback; })
-      .catch(e => {
-        console.warn("재생 실패:", fileName);
-        if(callback) setTimeout(callback, 1500); // 파일 없으면 1.5초 후 다음으로
-      });
-  }
+  // Card content by mode
+  updateCardContent();
+}
 
-  function updateCard() {
-    const word = chapters[currentChapterIdx][currentIndex];
-    document.getElementById('word-en').innerText = word.word;
-    document.getElementById('word-ko').innerText = word.meaning;
-    document.getElementById('word-desc').innerText = word.desc;
-    document.getElementById('word-progress').innerText = `${currentIndex + 1} / ${chapters[currentChapterIdx].length}`;
-    isFlipped = false;
-    document.getElementById('flashcard').classList.remove('flipped');
-  }
+function updateCardContent() {
+  const w = currentWord();
+  if (!w) return;
+  const mode = currentMode;
 
-  function toggleFlip() {
-    isFlipped = !isFlipped;
-    document.getElementById('flashcard').classList.toggle('flipped', isFlipped);
-    if(isFlipped && !isPlaying) playAudio(chapters[currentChapterIdx][currentIndex].word);
-  }
+  if (mode === 'learn') {
+    document.getElementById('front-hint-text').textContent = 'TAP TO FLIP';
+    document.getElementById('front-word').textContent = w.word;
+    document.getElementById('front-word').className = 'card-word';
+    document.getElementById('front-index').textContent = `${currentWordIdx+1} / ${currentChapter().length}`;
+    document.getElementById('quiz-hint-row').style.display = 'none';
+    document.getElementById('back-meaning').textContent = w.meaning;
+    document.getElementById('back-desc').textContent = w.desc;
+    document.getElementById('card-dots').style.display = 'flex';
 
-  function nextWord() {
-    stopAutoPlay();
-    currentIndex = (currentIndex + 1) % chapters[currentChapterIdx].length;
-    updateCard();
-  }
+  } else if (mode === 'test') {
+    const isEnKo = testDir === 'en-ko';
+    document.getElementById('front-hint-text').textContent = isEnKo ? '영어 → 한국어' : '한국어 → 영어';
+    document.getElementById('front-word').textContent = isEnKo ? w.word : w.meaning;
+    document.getElementById('front-word').className = 'card-word' + (isEnKo ? '' : ' ko');
+    document.getElementById('front-index').textContent = `${currentWordIdx+1} / ${currentChapter().length}`;
+    document.getElementById('quiz-hint-row').style.display = 'none';
+    document.getElementById('back-meaning').textContent = isEnKo ? w.meaning : w.word;
+    document.getElementById('back-desc').textContent = '';
+    document.getElementById('card-dots').style.display = 'flex';
 
-  function prevWord() {
-    stopAutoPlay();
-    currentIndex = (currentIndex - 1 + chapters[currentChapterIdx].length) % chapters[currentChapterIdx].length;
-    updateCard();
-  }
+  } else if (mode === 'quiz') {
+    hintLevel = 0;
+    document.getElementById('front-hint-text').textContent = '뜻을 보고 단어를 맞춰보세요';
+    document.getElementById('front-word').textContent = w.meaning;
+    document.getElementById('front-word').className = 'card-word ko';
+    document.getElementById('front-index').textContent = `${currentWordIdx+1} / ${currentChapter().length}`;
+    document.getElementById('quiz-hint-row').style.display = 'flex';
+    document.getElementById('card-dots').style.display = 'none';
+    renderHintRow(w.word, 0);
 
-  // 4. 자동 재생 (루프)
-  function runAutoStep() {
-    if (!isPlaying) return;
-    updateCard();
-    playAudio(chapters[currentChapterIdx][currentIndex].word, () => {
-      autoPlayTimeout = setTimeout(() => {
+    const hintBtn = document.getElementById('hint-btn');
+    hintBtn.textContent = '💡 힌트 보기';
+    hintBtn.disabled = false;
+  }
+}
+
+/* ─── HINT ROW ─── */
+function renderHintRow(word, level) {
+  const row = document.getElementById('quiz-hint-row');
+  row.innerHTML = '';
+  if (level === 0) {
+    const placeholder = document.createElement('div');
+    placeholder.style.cssText = 'color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing:2px;';
+    placeholder.textContent = '_ _ _ _ _';
+    row.appendChild(placeholder);
+    return;
+  }
+  for (let i = 0; i < word.length; i++) {
+    const c = word[i];
+    const el = document.createElement('div');
+    el.className = 'hint-char' + (c === ' ' ? ' space' : '');
+    const show = level === 3 || i === 0 || c === ' ';
+    const showAll = level >= 3;
+    el.textContent = (showAll || (i === 0 && level >= 1)) ? c.toUpperCase() :
+                     (level === 2 && c !== ' ') ? '_' : '';
+    if (level === 2) el.textContent = (i === 0) ? c.toUpperCase() : (c === ' ' ? '' : '_');
+    if (level === 3) el.textContent = c.toUpperCase();
+    row.appendChild(el);
+  }
+}
+
+function nextHint() {
+  const w = currentWord();
+  if (!w) return;
+  hintLevel = Math.min(hintLevel + 1, 3);
+  renderHintRow(w.word, hintLevel);
+  const btn = document.getElementById('hint-btn');
+  if (hintLevel === 1) btn.textContent = '💡 힌트 2단계';
+  else if (hintLevel === 2) btn.textContent = '✅ 정답 보기';
+  else { btn.textContent = '✓ 정답 확인됨'; btn.disabled = true; playAudioOnly(); }
+}
+
+/* ─── FLIP ─── */
+function flipCard() {
+  if (currentMode === 'quiz') return; // quiz 모드는 카드 클릭으로 넘기지 않음
+  isFlipped = !isFlipped;
+  document.getElementById('flash-card').classList.toggle('flipped', isFlipped);
+  if (isFlipped) {
+    if (currentMode === 'learn') {
+      document.getElementById('leitner-row').style.display = 'flex';
+    }
+  } else {
+    document.getElementById('leitner-row').style.display = 'none';
+  }
+}
+document.getElementById('flash-card').addEventListener('click', () => {
+  if (!isPlaying) flipCard();
+});
+
+/* ─── NAVIGATE ─── */
+function navigate(dir) {
+  stopAutoPlay();
+  hintLevel = 0;
+  const total = currentChapter().length;
+  currentWordIdx = (currentWordIdx + dir + total) % total;
+  renderCard();
+}
+
+/* ─── MODE SWITCH ─── */
+function switchMode(m) {
+  stopAutoPlay();
+  currentMode = m;
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === m);
+  });
+  document.getElementById('ctrl-learn').style.display = m === 'learn' ? 'flex' : 'none';
+  document.getElementById('ctrl-test').style.display  = m === 'test'  ? 'flex' : 'none';
+  document.getElementById('ctrl-quiz').style.display  = m === 'quiz'  ? 'flex' : 'none';
+  document.getElementById('btn-play').style.display   = m === 'learn' ? 'flex' : 'flex'; // always show
+
+  // Hide play button in quiz mode (manual navigation)
+  document.getElementById('btn-play').style.visibility = m === 'quiz' ? 'hidden' : 'visible';
+  document.getElementById('leitner-row').style.display = 'none';
+
+  // Play button: in test mode, use flip icon
+  if (m === 'test') document.getElementById('btn-play').textContent = '↕';
+  else document.getElementById('btn-play').textContent = '▶';
+
+  hintLevel = 0;
+  renderCard();
+}
+
+/* ─── STAR / LEITNER ─── */
+function toggleStar() {
+  const w = currentWord();
+  if (!w) return;
+  starredWords[w.word] = !starredWords[w.word];
+  if (!starredWords[w.word]) delete starredWords[w.word];
+  localStorage.setItem('starred', JSON.stringify(starredWords));
+  const starBtn = document.getElementById('star-btn');
+  starBtn.textContent = starredWords[w.word] ? '⭐' : '☆';
+  starBtn.className = 'btn-star' + (starredWords[w.word] ? ' active' : '');
+  showToast(starredWords[w.word] ? '⭐ 내 단어장에 추가되었어요!' : '☆ 내 단어장에서 제거되었어요.');
+}
+
+function leitnerMark(level) {
+  const w = currentWord();
+  if (!w) return;
+  leitnerData[w.word] = level;
+  localStorage.setItem('leitner', JSON.stringify(leitnerData));
+  const icons = ['😵 다음에 다시!', '🤔 조금 더 연습!', '✅ 완벽해요!'];
+  showToast(icons[level]);
+  setTimeout(() => navigate(1), 350);
+}
+
+/* ─── REPEAT COUNT ─── */
+function changeRepeat(d) {
+  repeatCount = Math.max(1, Math.min(9, repeatCount + d));
+  document.getElementById('repeat-val').textContent = repeatCount;
+}
+
+/* ─── TEST DIR ─── */
+function setDir(d) {
+  testDir = d;
+  document.getElementById('dir-en-ko').className = 'dir-btn' + (d === 'en-ko' ? ' active' : '');
+  document.getElementById('dir-ko-en').className = 'dir-btn' + (d === 'ko-en' ? ' active' : '');
+  isFlipped = false;
+  document.getElementById('flash-card').classList.remove('flipped');
+  updateCardContent();
+}
+
+/* ─── AUDIO ─── */
+function getAudioCandidates(word) {
+  // Try multiple file name formats:
+  const variants = new Set();
+  variants.add(word);                                           // original: "Itchy feet"
+  variants.add(word.charAt(0).toUpperCase() + word.slice(1));  // capitalize first: "Itchy feet"
+  variants.add(word.toLowerCase());                             // all lowercase: "itchy feet"
+  // Title case each word: "Itchy Feet"
+  variants.add(word.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' '));
+  return Array.from(variants).map(v => `./audio/${v}.mp3`);
+}
+
+function tryPlayAudio(candidates, idx, onSuccess, onFail) {
+  if (idx >= candidates.length) { onFail && onFail(); return; }
+  const a = new Audio(candidates[idx]);
+  a.oncanplaythrough = () => { a.play(); audioEl = a; onSuccess && onSuccess(a); };
+  a.onerror = () => tryPlayAudio(candidates, idx + 1, onSuccess, onFail);
+  a.load();
+}
+
+function playAudioOnly() {
+  const w = currentWord();
+  if (!w) return;
+  stopAudio();
+  const candidates = getAudioCandidates(w.word);
+  tryPlayAudio(candidates, 0, null, () => {
+    // Fallback to TTS
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance(w.word);
+      u.lang = 'en-US'; u.rate = 0.85;
+      speechSynthesis.speak(u);
+    }
+  });
+}
+
+function stopAudio() {
+  if (audioEl) { audioEl.pause(); audioEl.src = ''; audioEl = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+/* ─── AUTO PLAY ─── */
+function toggleAutoPlay() {
+  if (currentMode === 'test') { flipCard(); return; } // in test mode, toggle = flip
+  if (isPlaying) stopAutoPlay();
+  else startAutoPlay();
+}
+
+function startAutoPlay() {
+  isPlaying = true;
+  currentRep = 0;
+  document.getElementById('btn-play').textContent = '⏹';
+  document.getElementById('btn-play').classList.add('playing');
+  runAutoStep();
+}
+
+function runAutoStep() {
+  if (!isPlaying) return;
+  const chapter = currentChapter();
+  const w = chapter[currentWordIdx];
+  if (!w) { stopAutoPlay(); return; }
+
+  // Show front
+  isFlipped = false;
+  document.getElementById('flash-card').classList.remove('flipped');
+  renderCard();
+
+  // Play audio then flip
+  const candidates = getAudioCandidates(w.word);
+  tryPlayAudio(candidates, 0, (audio) => {
+    audio.onended = () => {
+      if (!isPlaying) return;
+      isFlipped = true;
+      document.getElementById('flash-card').classList.add('flipped');
+      // Read meaning with TTS after flip
+      autoTimer = setTimeout(() => {
         if (!isPlaying) return;
-        toggleFlip();
-        autoPlayTimeout = setTimeout(() => {
+        if (window.speechSynthesis) {
+          const u = new SpeechSynthesisUtterance(w.meaning.split(',')[0]);
+          u.lang = 'ko-KR'; u.rate = 0.9;
+          u.onend = () => { if (isPlaying) advanceAutoPlay(); };
+          speechSynthesis.speak(u);
+        } else { advanceAutoPlay(); }
+      }, 600);
+    };
+  }, () => {
+    // No audio file → use TTS for word
+    if (!isPlaying) return;
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance(w.word);
+      u.lang = 'en-US'; u.rate = 0.85;
+      u.onend = () => {
+        if (!isPlaying) return;
+        isFlipped = true;
+        document.getElementById('flash-card').classList.add('flipped');
+        autoTimer = setTimeout(() => {
           if (!isPlaying) return;
-          currentIndex = (currentIndex + 1) % chapters[currentChapterIdx].length;
-          runAutoStep();
-        }, 2500);
-      }, 800);
-    });
-  }
+          const u2 = new SpeechSynthesisUtterance(w.meaning.split(',')[0]);
+          u2.lang = 'ko-KR'; u2.rate = 0.9;
+          u2.onend = () => { if (isPlaying) advanceAutoPlay(); };
+          speechSynthesis.speak(u2);
+        }, 600);
+      };
+      speechSynthesis.speak(u);
+    } else { advanceAutoPlay(); }
+  });
+}
 
-  function toggleAutoPlay() {
-    isPlaying = !isPlaying;
-    const btn = document.getElementById('btn-play-toggle');
-    if (isPlaying) {
-      btn.innerText = "⏹"; btn.style.background = "#333";
-      runAutoStep();
-    } else { stopAutoPlay(); }
-  }
+function advanceAutoPlay() {
+  if (!isPlaying) return;
+  autoTimer = setTimeout(() => {
+    if (!isPlaying) return;
+    const total = currentChapter().length;
+    const next = currentWordIdx + 1;
+    if (next >= total) {
+      currentRep++;
+      if (repeatCount > 0 && currentRep >= repeatCount) {
+        stopAutoPlay();
+        showToast('✅ 학습 완료!');
+        return;
+      }
+      currentWordIdx = 0;
+    } else {
+      currentWordIdx = next;
+    }
+    runAutoStep();
+  }, 900);
+}
 
-  function stopAutoPlay() {
-    isPlaying = false;
-    clearTimeout(autoPlayTimeout);
-    currentAudio.pause();
-    document.getElementById('btn-play-toggle').innerText = "▶";
-    document.getElementById('btn-play-toggle').style.background = "#FF6B6B";
+function stopAutoPlay() {
+  isPlaying = false;
+  clearTimeout(autoTimer);
+  stopAudio();
+  if (currentMode !== 'test') {
+    document.getElementById('btn-play').textContent = '▶';
+    document.getElementById('btn-play').classList.remove('playing');
   }
+}
 
-  function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    window.scrollTo(0, 0);
+/* ─── SCREEN MANAGEMENT ─── */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.style.display = 'none';
+    s.classList.remove('active');
+  });
+  const el = document.getElementById(id);
+  el.style.display = 'flex';
+  requestAnimationFrame(() => el.classList.add('active'));
+}
+
+function goBack(screenId) {
+  stopAutoPlay();
+  if (screenId === 'screen-home') {
+    // Refresh "내 단어장" before going home
+    loadAll();
   }
+  showScreen(screenId);
+}
 
-  loadData();
+/* ─── SWIPE SUPPORT ─── */
+let touchStartX = 0, touchStartY = 0;
+document.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) < 40 || Math.abs(dy) > 80) return;
+  const screen = document.querySelector('.screen.active');
+  if (!screen || screen.id !== 'screen-study') return;
+  // Only swipe on card area
+  const cardEl = document.getElementById('flash-card');
+  if (!cardEl) return;
+  if (dx < -40) navigate(1);
+  else if (dx > 40) navigate(-1);
+}, { passive: true });
+
+/* ─── KEYBOARD ─── */
+document.addEventListener('keydown', e => {
+  const active = document.querySelector('.screen.active');
+  if (!active || active.id !== 'screen-study') return;
+  if (e.key === 'ArrowRight') navigate(1);
+  else if (e.key === 'ArrowLeft') navigate(-1);
+  else if (e.key === ' ') { e.preventDefault(); flipCard(); }
+});
+
+/* ─── TOAST ─── */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ─── INIT ─── */
+loadAll();
 </script>
 </body>
 </html>
