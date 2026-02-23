@@ -662,23 +662,34 @@ function parseCSV(text) {
 }
 
 async function loadCSV() {
-  const fileNames = [
+  // 한글 파일명은 encodeURIComponent로 인코딩해서 시도해야 GitHub Pages에서 동작
+  const rawNames = [
+    'vocab.csv',
     '트루먼_쇼_핵심_영어_단어_어원_분석.csv',
     'words.csv',
     'vocabulary.csv'
   ];
-  
-  for (const name of fileNames) {
+
+  // 각 파일명을 원본 + 인코딩된 버전 모두 시도
+  const candidates = [];
+  rawNames.forEach(name => {
+    candidates.push(name);                          // 원본 (로컬 서버 등)
+    candidates.push(encodeURIComponent(name));      // 인코딩 (GitHub Pages)
+  });
+
+  for (const name of candidates) {
     try {
       const res = await fetch('./' + name);
       if (res.ok) {
         const text = await res.text();
-        return parseCSV(text);
+        const rows = parseCSV(text);
+        if (rows.length > 0) return rows;           // 빈 파일은 스킵
       }
-    } catch(e) {}
+    } catch(e) { /* 다음 후보로 */ }
   }
-  
-  // fallback: 내장 샘플 데이터
+
+  // 최후 폴백: 내장 샘플 (CSV 파일이 없을 때만 표시됨)
+  console.warn('[암기고래] CSV 파일을 찾지 못했습니다. 샘플 데이터를 표시합니다.');
   return [
     { category: '샘플', word: 'Serendipity', meaning: '뜻밖의 행운', description: 'Ex) Finding that café was pure serendipity.' },
     { category: '샘플', word: 'Ephemeral', meaning: '덧없는, 순간적인', description: '매우 짧은 시간만 지속되는.' },
