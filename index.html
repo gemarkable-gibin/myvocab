@@ -921,24 +921,16 @@ function nextWord() {
 function playAudioFile(wordText, onEndedCallback) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   
-  // 원본 대소문자 유지, 특수문자만 제거
   const cleanWord = wordText.replace(/[^a-zA-Z0-9]/g, '');
   const audioPath = `./audio/${cleanWord}.mp3`;
   
   currentAudio = new Audio(audioPath);
   currentAudio.play().then(() => {
+    // mp3 정상 재생 → 재생 완료(onended) 후 callback (30초 음성도 끝까지 재생)
     if (onEndedCallback) currentAudio.onended = onEndedCallback;
   }).catch(() => {
-    // Web Speech API fallback
-    if (window.speechSynthesis) {
-      const utter = new SpeechSynthesisUtterance(wordText);
-      utter.lang = 'en-US';
-      utter.rate = 0.85;
-      utter.onend = onEndedCallback || null;
-      speechSynthesis.speak(utter);
-    } else {
-      if (onEndedCallback) setTimeout(onEndedCallback, 1500);
-    }
+    // mp3 파일 없음 → 5초 대기 후 다음 단어로 이동
+    if (onEndedCallback) setTimeout(onEndedCallback, 5000);
   });
 }
 
@@ -1112,21 +1104,13 @@ function showResult(score, total) {
 // ═══════════════════════════════════════════════════════
 let clozeAttempts = 0;
 
-/* desc에서 target word를 포함하는 예문 추출 */
+/* desc에서 target word를 포함하는 예문 추출 → desc 전체를 그대로 사용 */
 function extractSentence(word, desc) {
   if (!desc || !word) return null;
-  // 문장 단위 분리 (줄바꿈 또는 마침표/느낌표/물음표로 나눔)
-  const sentences = desc.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 4);
-  const regex = new RegExp('\\b' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
-  // word 포함 문장 우선
-  const withWord = sentences.find(s => regex.test(s));
-  if (withWord) return withWord;
-  // "Ex)" 또는 "Example:" 패턴 찾기
-  const exMatch = desc.match(/(?:Ex[:.)]|e\.g\.|Example[:.)])\s*(.+?)(?:[.!?]|$)/i);
-  if (exMatch) return exMatch[1].trim();
-  // 단어가 포함된 전체 desc가 짧으면 그대로 사용
-  if (regex.test(desc) && desc.length < 200) return desc.split('\n')[0];
-  return null;
+  // desc 전체를 사용 (단어가 포함돼 있으면 그대로, 없으면 null 반환)
+  const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  if (regex.test(desc)) return desc.trim();
+  return null;  // 단어가 desc 안에 없으면 뜻 입력 모드로 fallback
 }
 
 function startClozeQuiz() {
