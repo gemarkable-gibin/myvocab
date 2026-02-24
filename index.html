@@ -134,6 +134,12 @@
     .btn-icon.active-loop {
       background: rgba(78,205,196,0.2); border-color: rgba(78,205,196,0.4); color: #4ECDC4;
     }
+    .loop-count-badge {
+      position: absolute; top: -5px; right: -5px;
+      background: #4ECDC4; color: #000; border-radius: 99px;
+      font-size: 9px; font-weight: 800; padding: 1px 5px; pointer-events: none;
+    }
+    .btn-icon { position: relative; }
     .btn-play {
       width: 64px; height: 64px; border-radius: 20px; background: #FF6B6B; border: none;
       color: #fff; font-size: 24px; cursor: pointer;
@@ -421,6 +427,7 @@
           <div class="card-hint">TAP · SWIPE ↕</div>
           <div id="word-en" class="card-word">Word</div>
           <div id="word-progress" class="card-progress">1 / 10</div>
+          <div id="no-audio-badge" style="display:none;font-size:10px;color:rgba(255,100,100,0.6);margin-top:4px;letter-spacing:1px;">🔇 음성파일 없음</div>
           <div class="card-swipe-overlay" id="swipe-overlay"></div>
         </div>
         <div class="card-face card-back">
@@ -433,7 +440,7 @@
     <div class="swipe-guide">↕ 위아래 스와이프: 뒤집기 &nbsp;·&nbsp; ← → 좌우 스와이프: 이전/다음</div>
 
     <div class="controls">
-      <button class="btn-icon" id="btn-loop" onclick="toggleLoop()" title="반복재생">🔁</button>
+      <button class="btn-icon" id="btn-loop" onclick="toggleLoop()" title="반복재생">🔁<span id="loop-badge" style="display:none;" class="loop-count-badge"></span></button>
       <button class="btn-icon" onclick="prevWord()">‹</button>
       <button id="btn-play-toggle" class="btn-play" onclick="toggleAutoPlay()">▶</button>
       <button class="btn-icon" onclick="nextWord()">›</button>
@@ -479,7 +486,7 @@
       <div class="section-title" style="padding:0 0 10px;">학습 범위</div>
       <div style="display:flex; gap:10px;">
         <button id="quiz-scope-all" class="btn-secondary" style="flex:1;padding:11px;font-size:13px;border-radius:12px;" onclick="setQuizScope('all')">전체 단어</button>
-        <button id="quiz-scope-cat" class="btn-secondary" style="flex:1;padding:11px;font-size:13px;border-radius:12px;" onclick="setQuizScope('category')">현재 카테고리</button>
+        <button id="quiz-scope-category" class="btn-secondary" style="flex:1;padding:11px;font-size:13px;border-radius:12px;" onclick="setQuizScope('category')">현재 카테고리</button>
         <button id="quiz-scope-weak" class="btn-secondary" style="flex:1;padding:11px;font-size:13px;border-radius:12px;" onclick="setQuizScope('weak')">취약 단어</button>
       </div>
     </div>
@@ -606,7 +613,8 @@ let currentWords = [];      // 현재 학습/퀴즈 중인 단어 배열
 let currentIndex = 0;
 let isFlipped = false;
 let isPlaying = false;
-let isLoop = false;
+let loopCount = 0;       // 0=off, 1~9=N회 반복
+let loopRemaining = 0;   // 남은 반복 횟수
 let autoPlayTimeout;
 let currentAudio = null;
 
@@ -624,6 +632,10 @@ let lastCategory = '';
 let leitnerData = {};       // {word: 'know'|'vague'|'dontknow'}
 let leitnerQueue = [];      // 현재 세션 큐
 let leitnerRevealed = false;
+let leitnerWordSet = null;  // null=전체/퀴즈범위, 배열=특정 단어셋
+
+// 음성파일 없음 캐시
+const noAudioCache = {};    // {word: true/false}
 
 // ═══════════════════════════════════════════════════════
 //  CSV 로드 & 파싱
@@ -746,11 +758,13 @@ function renderCategoryList() {
     const btn = document.createElement('button');
     btn.className = 'menu-item';
     const weakCount = words.filter(w => leitnerData[w.word] === 'dontknow' || leitnerData[w.word] === 'vague').length;
+    const noAudioCount = words.filter(w => noAudioCache[w.word.replace(/[^a-zA-Z0-9]/g,'')] === false).length;
+    const noAudioText = noAudioCount > 0 ? ` · 🔇 ${noAudioCount}개` : '';
     btn.innerHTML = `
       <div class="menu-icon">📂</div>
       <div class="menu-text">
         <div class="menu-text-main">${catName}</div>
-        <div class="menu-text-sub">${words.length}개 단어${weakCount ? ` · 취약 ${weakCount}개` : ''}</div>
+        <div class="menu-text-sub">${words.length}개 단어${weakCount ? ` · 취약 ${weakCount}개` : ''}${noAudioText}</div>
       </div>
       <div class="menu-badge">${words.length}</div>
       <div class="menu-arrow">›</div>
@@ -789,8 +803,12 @@ function openCategory(catName) {
   for (let i = 0; i < words.length; i += 10) {
     const chunk = words.slice(i, i+10);
     const groupNum = Math.floor(i/10) + 1;
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;gap:8px;align-items:stretch;';
+
     const btn = document.createElement('button');
     btn.className = 'menu-item';
+    btn.style.flex = '1';
     btn.innerHTML = `
       <div class="menu-icon">📝</div>
       <div class="menu-text">
@@ -801,7 +819,17 @@ function openCategory(catName) {
       <div class="menu-arrow">›</div>
     `;
     btn.onclick = () => startStudyWithWords(chunk, `${catName} · 그룹 ${groupNum}`, catName);
-    list.appendChild(btn);
+
+    const leitnerBtn = document.createElement('button');
+    leitnerBtn.className = 'menu-item';
+    leitnerBtn.style.cssText = 'flex:0 0 auto;padding:12px 14px;';
+    leitnerBtn.title = '라이트너 암기법';
+    leitnerBtn.innerHTML = `<div style="font-size:20px;">🃏</div>`;
+    leitnerBtn.onclick = () => startLeitnerQuiz(chunk);
+
+    wrapper.appendChild(btn);
+    wrapper.appendChild(leitnerBtn);
+    list.appendChild(wrapper);
   }
   
   showScreen('screen-category');
@@ -845,6 +873,27 @@ function updateCard() {
   
   isFlipped = false;
   document.getElementById('flashcard').classList.remove('flipped');
+  
+  // 음성파일 존재 여부 확인 및 표시
+  checkAudioExists(w.word);
+}
+
+async function checkAudioExists(word) {
+  const badge = document.getElementById('no-audio-badge');
+  if (!badge) return;
+  const clean = word.replace(/[^a-zA-Z0-9]/g, '');
+  if (noAudioCache[clean] !== undefined) {
+    badge.style.display = noAudioCache[clean] ? 'none' : 'block';
+    return;
+  }
+  try {
+    const res = await fetch(`./audio/${clean}.mp3`, { method: 'HEAD' });
+    noAudioCache[clean] = res.ok;
+    badge.style.display = res.ok ? 'none' : 'block';
+  } catch {
+    noAudioCache[clean] = false;
+    badge.style.display = 'block';
+  }
 }
 
 function toggleFlip() {
@@ -917,9 +966,17 @@ function playWordTTS(word) {
 //  자동재생 & 루프
 // ═══════════════════════════════════════════════════════
 function toggleLoop() {
-  isLoop = !isLoop;
+  loopCount = (loopCount + 1) % 10; // 0→1→2→...→9→0
   const btn = document.getElementById('btn-loop');
-  btn.classList.toggle('active-loop', isLoop);
+  const badge = document.getElementById('loop-badge');
+  if (loopCount === 0) {
+    btn.classList.remove('active-loop');
+    badge.style.display = 'none';
+  } else {
+    btn.classList.add('active-loop');
+    badge.style.display = 'block';
+    badge.textContent = loopCount;
+  }
 }
 
 function runAutoPlayStep() {
@@ -934,8 +991,18 @@ function runAutoPlayStep() {
         if (!isPlaying) return;
         currentIndex++;
         if (currentIndex >= currentWords.length) {
-          if (isLoop) { currentIndex = 0; }
-          else { stopAutoPlay(); return; }
+          if (loopCount > 0) {
+            loopRemaining--;
+            if (loopRemaining > 0) {
+              currentIndex = 0;
+            } else {
+              stopAutoPlay();
+              return;
+            }
+          } else {
+            stopAutoPlay();
+            return;
+          }
         }
         runAutoPlayStep();
       }, 2200);
@@ -946,6 +1013,7 @@ function runAutoPlayStep() {
 function toggleAutoPlay() {
   if (isPlaying) { stopAutoPlay(); return; }
   isPlaying = true;
+  loopRemaining = loopCount > 0 ? loopCount : 1; // 루프 없으면 1회
   const btn = document.getElementById('btn-play-toggle');
   btn.textContent = '⏹';
   btn.classList.add('playing');
@@ -1042,7 +1110,24 @@ function showResult(score, total) {
 // ═══════════════════════════════════════════════════════
 //  클로즈 퀴즈 (타이핑 + 점진적 힌트)
 // ═══════════════════════════════════════════════════════
-let clozeAttempts = 0;   // 현재 문제 시도 횟수 (최대 3회)
+let clozeAttempts = 0;
+
+/* desc에서 target word를 포함하는 예문 추출 */
+function extractSentence(word, desc) {
+  if (!desc || !word) return null;
+  // 문장 단위 분리 (줄바꿈 또는 마침표/느낌표/물음표로 나눔)
+  const sentences = desc.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 4);
+  const regex = new RegExp('\\b' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+  // word 포함 문장 우선
+  const withWord = sentences.find(s => regex.test(s));
+  if (withWord) return withWord;
+  // "Ex)" 또는 "Example:" 패턴 찾기
+  const exMatch = desc.match(/(?:Ex[:.)]|e\.g\.|Example[:.)])\s*(.+?)(?:[.!?]|$)/i);
+  if (exMatch) return exMatch[1].trim();
+  // 단어가 포함된 전체 desc가 짧으면 그대로 사용
+  if (regex.test(desc) && desc.length < 200) return desc.split('\n')[0];
+  return null;
+}
 
 function startClozeQuiz() {
   // 영화 대사가 있는 단어 우선 선발
@@ -1099,13 +1184,18 @@ function renderClozeWithHint(hintLevel) {
   const sentenceEl = document.getElementById('cloze-sentence');
 
   if (sentence) {
-    sentenceEl.innerHTML = makeClozeBlank(sentence, w.word, hintLevel);
+    sentenceEl.innerHTML = `<span class="quiz-sentence">${makeClozeBlank(sentence, w.word, hintLevel)}</span>`;
   } else {
-    // 대사 없는 경우: 뜻 표시하고 영어 단어 입력
+    // 예문 없을 때: 뜻 보여주고 단어 맞히기
+    let hintStr = '';
+    if (hintLevel >= 1) {
+      const vowelHint = w.word.split('').map((c, i) => i === 0 ? c : hintLevel >= 2 && /[aeiou]/i.test(c) ? c : '_').join('');
+      hintStr = `<div style="margin-top:10px;font-size:14px;color:#FFD54F;letter-spacing:3px;font-family:monospace;">${vowelHint}</div>`;
+    }
     sentenceEl.innerHTML = `
       <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:8px;letter-spacing:1px;">뜻을 보고 영단어를 입력하세요</div>
       <div style="font-size:22px;font-weight:800;">${w.meaning}</div>
-      ${hintLevel > 0 ? `<div style="margin-top:10px;">${makeClozeBlank('[ ___ ]', '_', hintLevel, w.word)}</div>` : ''}
+      ${hintStr}
     `;
   }
 }
@@ -1288,9 +1378,10 @@ function answerAudio(btn, isCorrect) {
 // ═══════════════════════════════════════════════════════
 //  라이트너 암기법
 // ═══════════════════════════════════════════════════════
-function startLeitnerQuiz() {
-  // 취약(dontknow/vague) 단어 먼저, 그 다음 미평가, 마지막으로 know
-  const pool = getQuizWords();
+function startLeitnerQuiz(wordSet) {
+  // wordSet이 전달되면 해당 단어셋 사용, 아니면 퀴즈 범위 기반
+  const pool = wordSet || getQuizWords();
+  leitnerWordSet = wordSet || null;
   const dontknow = pool.filter(w => leitnerData[w.word] === 'dontknow');
   const vague = pool.filter(w => leitnerData[w.word] === 'vague');
   const unrated = pool.filter(w => !leitnerData[w.word]);
