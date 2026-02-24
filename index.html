@@ -613,8 +613,7 @@ let currentWords = [];      // 현재 학습/퀴즈 중인 단어 배열
 let currentIndex = 0;
 let isFlipped = false;
 let isPlaying = false;
-let loopCount = 0;       // 0=off, 1~9=N회 반복
-let loopRemaining = 0;   // 남은 반복 횟수
+let loopCount = 0;       // 0=off, 1~9=단어당 N회 반복 재생
 let autoPlayTimeout;
 let currentAudio = null;
 
@@ -881,19 +880,21 @@ function updateCard() {
 async function checkAudioExists(word) {
   const badge = document.getElementById('no-audio-badge');
   if (!badge) return;
-  const clean = word.replace(/[^a-zA-Z0-9]/g, '');
-  if (noAudioCache[clean] !== undefined) {
-    badge.style.display = noAudioCache[clean] ? 'none' : 'block';
+  const cacheKey = word.trim();
+  if (noAudioCache[cacheKey] !== undefined) {
+    badge.style.display = noAudioCache[cacheKey] ? 'none' : 'block';
     return;
   }
-  try {
-    const res = await fetch(`./audio/${clean}.mp3`, { method: 'HEAD' });
-    noAudioCache[clean] = res.ok;
-    badge.style.display = res.ok ? 'none' : 'block';
-  } catch {
-    noAudioCache[clean] = false;
-    badge.style.display = 'block';
+  const candidates = getAudioCandidates(word);
+  let found = false;
+  for (const path of candidates) {
+    try {
+      const res = await fetch(path, { method: 'HEAD' });
+      if (res.ok) { found = true; break; }
+    } catch { /* 다음 후보 */ }
   }
+  noAudioCache[cacheKey] = found;
+  badge.style.display = found ? 'none' : 'block';
 }
 
 function toggleFlip() {
@@ -916,20 +917,42 @@ function nextWord() {
 }
 
 // ═══════════════════════════════════════════════════════
-//  오디오 재생 (대소문자 원본 유지)
+//  오디오 재생 (다중 단어 파일명 후보 순차 시도)
 // ═══════════════════════════════════════════════════════
+
+/* "Itchy feet" → 시도할 파일명 후보 목록 반환 */
+function getAudioCandidates(wordText) {
+  const t = wordText.trim();
+  const noSpace    = t.replace(/\s+/g, '');              // ItchyFeet
+  const underscore = t.replace(/\s+/g, '_');             // Itchy_feet
+  const encoded    = t.replace(/\s+/g, '%20');           // Itchy%20feet
+  const lower      = t.toLowerCase().replace(/\s+/g, ''); // itchyfeet
+  const lowerUs    = t.toLowerCase().replace(/\s+/g, '_'); // itchy_feet
+  return [...new Set([noSpace, underscore, encoded, lower, lowerUs])]
+    .map(name => `./audio/${name}.mp3`);
+}
+
+/* 후보 경로를 순서대로 시도 → 첫 성공 시 resolve, 전부 실패 시 reject */
+function tryPlayCandidates(candidates, onEndedCallback) {
+  return new Promise((resolve, reject) => {
+    let idx = 0;
+    function next() {
+      if (idx >= candidates.length) { reject(); return; }
+      const audio = new Audio(candidates[idx++]);
+      audio.play().then(() => {
+        currentAudio = audio;
+        if (onEndedCallback) audio.onended = onEndedCallback;
+        resolve();
+      }).catch(next);
+    }
+    next();
+  });
+}
+
 function playAudioFile(wordText, onEndedCallback) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  
-  const cleanWord = wordText.replace(/[^a-zA-Z0-9]/g, '');
-  const audioPath = `./audio/${cleanWord}.mp3`;
-  
-  currentAudio = new Audio(audioPath);
-  currentAudio.play().then(() => {
-    // mp3 정상 재생 → 재생 완료(onended) 후 callback (30초 음성도 끝까지 재생)
-    if (onEndedCallback) currentAudio.onended = onEndedCallback;
-  }).catch(() => {
-    // mp3 파일 없음 → 5초 대기 후 다음 단어로 이동
+  tryPlayCandidates(getAudioCandidates(wordText), onEndedCallback).catch(() => {
+    // 모든 후보 실패(파일 없음) → 5초 뒤 다음 단어
     if (onEndedCallback) setTimeout(onEndedCallback, 5000);
   });
 }
@@ -940,10 +963,7 @@ function playCurrentAudio() {
 
 function playWordTTS(word) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  const cleanWord = word.replace(/[^a-zA-Z0-9]/g, '');
-  const audioPath = `./audio/${cleanWord}.mp3`;
-  const audio = new Audio(audioPath);
-  audio.play().catch(() => {
+  tryPlayCandidates(getAudioCandidates(word)).catch(() => {
     if (window.speechSynthesis) {
       speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(word);
@@ -974,38 +994,43 @@ function toggleLoop() {
 function runAutoPlayStep() {
   if (!isPlaying) return;
   updateCard();
-  playAudioFile(currentWords[currentIndex].word, () => {
+
+  const repeatTimes = loopCount > 0 ? loopCount : 1; // 단어당 음성 재생 횟수
+  let playCount = 0;
+
+  function playOnce() {
     if (!isPlaying) return;
-    autoPlayTimeout = setTimeout(() => {
+    playAudioFile(currentWords[currentIndex].word, () => {
       if (!isPlaying) return;
-      toggleFlip();
-      autoPlayTimeout = setTimeout(() => {
-        if (!isPlaying) return;
-        currentIndex++;
-        if (currentIndex >= currentWords.length) {
-          if (loopCount > 0) {
-            loopRemaining--;
-            if (loopRemaining > 0) {
-              currentIndex = 0;
-            } else {
+      playCount++;
+      if (playCount < repeatTimes) {
+        // 반복 재생: 짧은 간격 후 같은 단어 다시 재생
+        autoPlayTimeout = setTimeout(playOnce, 600);
+      } else {
+        // 지정 횟수 재생 완료 → 카드 뒤집고 다음 단어로
+        autoPlayTimeout = setTimeout(() => {
+          if (!isPlaying) return;
+          toggleFlip();
+          autoPlayTimeout = setTimeout(() => {
+            if (!isPlaying) return;
+            currentIndex++;
+            if (currentIndex >= currentWords.length) {
               stopAutoPlay();
               return;
             }
-          } else {
-            stopAutoPlay();
-            return;
-          }
-        }
-        runAutoPlayStep();
-      }, 2200);
-    }, 500);
-  });
+            runAutoPlayStep();
+          }, 2200);
+        }, 500);
+      }
+    });
+  }
+
+  playOnce();
 }
 
 function toggleAutoPlay() {
   if (isPlaying) { stopAutoPlay(); return; }
   isPlaying = true;
-  loopRemaining = loopCount > 0 ? loopCount : 1; // 루프 없으면 1회
   const btn = document.getElementById('btn-play-toggle');
   btn.textContent = '⏹';
   btn.classList.add('playing');
